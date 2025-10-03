@@ -1,69 +1,64 @@
-# Cisco ASA Monitoring Stack (Telegraf + pyATS + InfluxDB + Grafana)
+# Cisco ASA Monitoring Stack (Telegraf + pyATS + InfluxDB 2.x + Grafana)
 
-Полный стек для мониторинга Cisco ASA через SSH с использованием pyATS/Unicon, сбором метрик в InfluxDB и визуализацией в Grafana.
+Контейнерный стек для сбора телеметрии с Cisco ASA по SSH (pyATS/Unicon), хранения метрик в InfluxDB 2.x и визуализации в Grafana[attached_file:1].
 
-Создано на основе https://github.com/mageru/ASA-Telemetry-Guide
+## Возможности
 
-Для Cisco ASA5540 - мб на чем то еще заведется.
+- Мониторинг VPN сессий (AnyConnect, Clientless, Site‑to‑Site) и агрегированные итоги по активным/пиковым значениям[attached_file:1].  
+- Контроль ресурсных метрик ASA (Connections, Xlates, Hosts, Syslogs rate и пр.) с историей[attached_file:1].  
+- Готовый дашборд Grafana и автоматическая привязка InfluxQL через DBRP после запуска init‑скрипта[web:227][web:220].  
+- Автоконфигурация Grafana datasource с токеном через API в init‑скрипте, без ручного ввода[web:224][web:212].  
 
-Основные изменения: Заложено что в железке не стоит пароль на "enable", прикручено все в один docker compose, при необходимости можно сверху вкрутить сколько угодно инпутов, т.к используем последние образа grafana и influx
+## Архитектура
 
-Скрипты переписывал Cluade Sonnet 4.5 , а я чисто рядом проходил - но вроде все работает.
+Cisco ASA → Telegraf (pyATS) → InfluxDB 2.x → Grafana
 
 
-## 🚀 Возможности
+## Быстрый старт
 
-- Мониторинг VPN сессий (AnyConnect, Clientless, Site-to-Site)
-- Отслеживание утилизации ресурсов (Connections, Xlates, Hosts)
-- SSH connection tracking
-- Device load и capacity monitoring
-- Автоматический сбор метрик каждые 30-60 секунд
-- Готовый дашборд Grafana
+1. Скопировать шаблон конфигурации ASA и заполнить доступы:  
+   cp telegraf-asa/testbed-asa.yaml.example telegraf-asa/testbed-asa.yaml[attached_file:1].  
+2. Запустить стек:  
+   docker compose up -d[attached_file:1].  
+3. Инициализировать (DBRP + токен + datasource):  
+   ./scripts/init-stack.sh[web:220][web:224].  
+4. Открыть Grafana на порту 3000 и войти под admin/admin, затем открыть дашборд ASA[attached_file:1].  
 
-## 📋 Требования
+## Конфигурация
 
-- Docker & Docker Compose
-- Доступ к Cisco ASA по SSH
-- Linux host (тестировано на Debian 11/12)
+- Интервал опроса: telegraf-asa/telegraf-asa.conf, секция [agent] → interval = "30s"[attached_file:1].  
+- Добавить несколько ASA: расширить devices в telegraf-asa/testbed-asa.yaml дополнительными узлами с ip/credentials[attached_file:1].  
+- Retention/настройки InfluxDB: править переменные окружения в docker-compose.yml и перезапускать стек[attached_file:1].  
 
-## 🛠️ Быстрый старт
+## Тонкости авто‑инициализации
 
-### 1. Клонировать репозиторий
+- DBRP создаётся командой influx v1 dbrp create по bucket‑id для совместимости с InfluxQL в Grafana[web:220].  
+- Токен для Grafana берётся из compose или при плейсхолдере создаётся новым All‑Access токеном через influx auth create и применяется к datasource через API[web:212][web:224].  
 
-git clone https://github.com/YOUR_USERNAME/asa-monitoring-stack.git
-cd asa-monitoring-stack
+## Отладка
 
-### 2. Настроить credentials
+- Логи Telegraf: docker compose logs telegraf-asa[attached_file:1].  
+- Проверка данных в InfluxDB (InfluxQL): запросы к базе asa‑metrics через порт 8086 внутри контейнера[attached_file:1].  
+- Перезапуск авто‑инициализации: ./scripts/init-stack.sh повторно можно запускать без сноса стека[web:224].  
 
-См. docs/SETUP.md для подробной инструкции.
+## Структура проекта
 
-### 3. Запустить стек
+asa-monitoring-stack/
+├── docker-compose.yml
+├── telegraf-asa/
+│ ├── Dockerfile
+│ ├── telegraf-asa.conf
+│ ├── testbed-asa.yaml.example
+│ └── testbed-asa.yaml # локально, в .gitignore
+├── scripts/
+│ ├── init-stack.sh
+│ └── asascript.py
+└── provisioning/
+├── datasources/
+└── dashboards/
 
-docker compose up -d
 
-### 4. Открыть Grafana
+## Лицензия и кредиты
 
-- URL: http://localhost:3000
-- Login: admin / admin
-
-## 📊 Собираемые метрики
-
-- VPN Sessions (Active, Inactive, Peak)
-- AnyConnect SSL/TLS/DTLS tunnels
-- Site-to-Site IKEv2 IPsec
-- ASA Resources (Connections, Xlates, Hosts)
-- SSH sessions
-
-## 🐛 Troubleshooting
-
-А тут братва сами, LLM  в помощь
-
-## 📝 Лицензия
-
-MIT - наверное
-
-## 🙏 Credits
-
-- ASA-Telemetry-Guide - Original scripts
-- pyATS/Unicon - Cisco automation
-- Telegraf, InfluxDB, Grafana - TICK stack
+- Лицензия: MIT - наверное???.  
+- Основано на идеях ASA‑Telemetry‑Guide и использует pyATS/Unicon, Telegraf, InfluxDB 2.x и Grafana[attached_file:1].  
