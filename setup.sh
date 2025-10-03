@@ -95,12 +95,12 @@ services:
     container_name: influxdb-asa
     restart: unless-stopped
     environment:
-      - DOCKER_INFLUXDB_INIT_MODE=setup
-      - DOCKER_INFLUXDB_INIT_USERNAME=$INFLUX_USER
-      - DOCKER_INFLUXDB_INIT_PASSWORD=$INFLUX_PASS
-      - DOCKER_INFLUXDB_INIT_ORG=$INFLUX_ORG
-      - DOCKER_INFLUXDB_INIT_BUCKET=$INFLUX_BUCKET
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=$INFLUX_TOKEN
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: $INFLUX_USER
+      DOCKER_INFLUXDB_INIT_PASSWORD: $INFLUX_PASS
+      DOCKER_INFLUXDB_INIT_ORG: $INFLUX_ORG
+      DOCKER_INFLUXDB_INIT_BUCKET: $INFLUX_BUCKET
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: $INFLUX_TOKEN
     ports:
       - "$INFLUX_PORT:8086"
     volumes:
@@ -131,8 +131,8 @@ services:
     container_name: grafana-asa
     restart: unless-stopped
     environment:
-      - GF_SECURITY_ADMIN_USER=$GRAFANA_USER
-      - GF_SECURITY_ADMIN_PASSWORD=$GRAFANA_PASS
+      GF_SECURITY_ADMIN_USER: $GRAFANA_USER
+      GF_SECURITY_ADMIN_PASSWORD: $GRAFANA_PASS
     ports:
       - "$GRAFANA_PORT:3000"
     depends_on:
@@ -148,7 +148,7 @@ volumes:
   grafana-data:
 EOF
 
-sed -i "s/interval = \"[0-9]*s\"/interval = \"${INTERVAL}s\"/" telegraf-asa/telegraf-asa.conf
+sed -i "s/interval = \"[0-9]*s\"/interval = \"${INTERVAL}s\"/" telegraf-asa/telegraf-asa.conf || true
 
 echo ""
 echo "=========================================="
