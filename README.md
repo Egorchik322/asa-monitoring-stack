@@ -17,12 +17,12 @@ Cisco ASA → Telegraf (pyATS) → InfluxDB 2.x → Grafana
 ## Быстрый старт
 
 1. Скопировать шаблон конфигурации ASA и заполнить доступы:  
-   cp telegraf-asa/testbed-asa.yaml.example telegraf-asa/testbed-asa.yaml[attached_file:1].  
+   cp telegraf-asa/testbed-asa.yaml.example telegraf-asa/testbed-asa.yaml
 2. Запустить стек:  
-   docker compose up -d[attached_file:1].  
+   docker compose up -d.  
 3. Инициализировать (DBRP + токен + datasource):  
-   ./scripts/init-stack.sh[web:220][web:224].  
-4. Открыть Grafana на порту 3000 и войти под admin/admin, затем открыть дашборд ASA[attached_file:1].  
+   ./scripts/init-stack.sh.  
+4. Открыть Grafana на порту 3000 и войти под admin/admin, затем открыть дашборд ASA.  
 
 ## Конфигурация
 
