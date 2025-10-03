@@ -10,99 +10,88 @@ echo ""
 read_password() {
     local prompt="$1"
     local password=""
-    echo -n "$prompt"
+    echo -n "$prompt" >&2
     while IFS= read -r -s -n1 char; do
-        if [[ $char == $'\0' ]]; then
-            break
+        if [[ $char == $'\0' ]]; then break
         elif [[ $char == $'\177' ]]; then
-            if [ ${#password} -gt 0 ]; then
-                password="${password%?}"
-                echo -ne "\b \b"
-            fi
-        else
-            password+="$char"
-            echo -n "*"
-        fi
+            if [ ${#password} -gt 0 ]; then password="${password%?}"; echo -ne "\b \b" >&2; fi
+        else password+="$char"; echo -n "*" >&2; fi
     done
-    echo ""
+    echo "" >&2
     echo "$password"
 }
 
 echo "=== Настройка Cisco ASA ==="
 read -p "IP адрес ASA: " ASA_IP
-read -p "SSH порт [22]: " ASA_PORT
-ASA_PORT=${ASA_PORT:-22}
-read -p "Имя устройства [ASA-FW]: " ASA_NAME
-ASA_NAME=${ASA_NAME:-ASA-FW}
+read -p "SSH порт [22]: " ASA_PORT; ASA_PORT=${ASA_PORT:-22}
+read -p "Имя устройства [ASAv]: " ASA_NAME; ASA_NAME=${ASA_NAME:-ASAv}
 read -p "SSH логин: " ASA_USER
 ASA_PASS=$(read_password "SSH пароль: ")
 
-echo ""
-echo "=== Настройка InfluxDB ==="
-read -p "Admin логин [admin]: " INFLUX_USER
-INFLUX_USER=${INFLUX_USER:-admin}
-INFLUX_PASS=$(read_password "Admin пароль [admin123]: ")
-INFLUX_PASS=${INFLUX_PASS:-admin123}
-read -p "Организация [myorg]: " INFLUX_ORG
-INFLUX_ORG=${INFLUX_ORG:-myorg}
-read -p "Bucket [asa-metrics]: " INFLUX_BUCKET
-INFLUX_BUCKET=${INFLUX_BUCKET:-asa-metrics}
-
+echo ""; echo "=== Настройка InfluxDB ==="
+read -p "Admin логин [admin]: " INFLUX_USER; INFLUX_USER=${INFLUX_USER:-admin}
+INFLUX_PASS=$(read_password "Admin пароль [admin123]: "); INFLUX_PASS=${INFLUX_PASS:-admin123}
+read -p "Организация [myorg]: " INFLUX_ORG; INFLUX_ORG=${INFLUX_ORG:-myorg}
+read -p "Bucket [asa-metrics]: " INFLUX_BUCKET; INFLUX_BUCKET=${INFLUX_BUCKET:-asa-metrics}
 INFLUX_TOKEN=$(openssl rand -hex 32 2>/dev/null || cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 64 | head -n 1)
 
-echo ""
-echo "=== Настройка Grafana ==="
-read -p "Admin логин [admin]: " GRAFANA_USER
-GRAFANA_USER=${GRAFANA_USER:-admin}
-GRAFANA_PASS=$(read_password "Admin пароль [admin]: ")
-GRAFANA_PASS=${GRAFANA_PASS:-admin}
+echo ""; echo "=== Настройка Grafana ==="
+read -p "Admin логин [admin]: " GRAFANA_USER; GRAFANA_USER=${GRAFANA_USER:-admin}
+GRAFANA_PASS=$(read_password "Admin пароль [admin]: "); GRAFANA_PASS=${GRAFANA_PASS:-admin}
 
-echo ""
-echo "=== Настройка портов ==="
-read -p "InfluxDB порт [8086]: " INFLUX_PORT
-INFLUX_PORT=${INFLUX_PORT:-8086}
-read -p "Grafana порт [3000]: " GRAFANA_PORT
-GRAFANA_PORT=${GRAFANA_PORT:-3000}
+echo ""; echo "=== Настройка портов ==="
+read -p "InfluxDB порт [8086]: " INFLUX_PORT; INFLUX_PORT=${INFLUX_PORT:-8086}
+read -p "Grafana порт [3000]: " GRAFANA_PORT; GRAFANA_PORT=${GRAFANA_PORT:-3000}
 
-echo ""
-echo "=== Интервал опроса ==="
-read -p "Интервал сбора метрик (секунды) [30]: " INTERVAL
-INTERVAL=${INTERVAL:-30}
+echo ""; echo "=== Интервал опроса ==="
+read -p "Интервал сбора метрик (секунды) [30]: " INTERVAL; INTERVAL=${INTERVAL:-30}
 
-echo ""
-echo "Создаю конфигурацию..."
+echo ""; echo "Создаю конфигурацию..."
 
-cat > telegraf-asa/testbed-asa.yaml << EOF
+cat > telegraf-asa/testbed-asa.yaml <<EOF
 devices:
-  $ASA_NAME:
+  ${ASA_NAME}:
     os: asa
     type: asa
-    credentials:
-      default:
-        username: $ASA_USER
-        password: $ASA_PASS
     connections:
       cli:
         protocol: ssh
-        ip: $ASA_IP
-        port: $ASA_PORT
+        ip: ${ASA_IP}
+        ssh_options: >
+          -o KexAlgorithms=diffie-hellman-group14-sha1
+          -o HostkeyAlgorithms=+ssh-rsa
+          -o PubkeyAcceptedAlgorithms=+ssh-rsa
+          -o Ciphers=aes128-ctr
+          -o StrictHostKeyChecking=no
+          -o UserKnownHostsFile=/dev/null
+        arguments:
+          learn_hostname: true
+          init_exec_commands: []
+          init_config_commands: []
+          goto_enable: false
+    credentials:
+      default:
+        username: ${ASA_USER}
+        password: "${ASA_PASS}"
+      enable:
+        password: ""
 EOF
 
-cat > docker-compose.yml << EOF
+cat > docker-compose.yml <<EOF
 services:
   influxdb:
     image: influxdb:latest
     container_name: influxdb-asa
     restart: unless-stopped
     environment:
-      DOCKER_INFLUXDB_INIT_MODE: setup
-      DOCKER_INFLUXDB_INIT_USERNAME: $INFLUX_USER
-      DOCKER_INFLUXDB_INIT_PASSWORD: $INFLUX_PASS
-      DOCKER_INFLUXDB_INIT_ORG: $INFLUX_ORG
-      DOCKER_INFLUXDB_INIT_BUCKET: $INFLUX_BUCKET
-      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: $INFLUX_TOKEN
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUX_USER}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUX_PASS}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUX_ORG}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUX_BUCKET}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUX_TOKEN}
     ports:
-      - "$INFLUX_PORT:8086"
+      - "${INFLUX_PORT}:8086"
     volumes:
       - influxdb-data:/var/lib/influxdb2
     healthcheck:
@@ -131,10 +120,10 @@ services:
     container_name: grafana-asa
     restart: unless-stopped
     environment:
-      GF_SECURITY_ADMIN_USER: $GRAFANA_USER
-      GF_SECURITY_ADMIN_PASSWORD: $GRAFANA_PASS
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASS}
     ports:
-      - "$GRAFANA_PORT:3000"
+      - "${GRAFANA_PORT}:3000"
     depends_on:
       influxdb:
         condition: service_healthy
@@ -148,17 +137,14 @@ volumes:
   grafana-data:
 EOF
 
-sed -i "s/interval = \"[0-9]*s\"/interval = \"${INTERVAL}s\"/" telegraf-asa/telegraf-asa.conf || true
+sed -i "s/token = \".*\"/token = \"${INFLUX_TOKEN}\"/" telegraf-asa/telegraf-asa.conf 2>/dev/null || true
+sed -i "s/interval = \"[0-9]*s\"/interval = \"${INTERVAL}s\"/" telegraf-asa/telegraf-asa.conf 2>/dev/null || true
 
 echo ""
 echo "=========================================="
 echo "  ✅ Конфигурация завершена!"
 echo "=========================================="
-echo ""
-echo "Параметры ASA:"
-echo "  Устройство: $ASA_NAME"
-echo "  IP: $ASA_IP:$ASA_PORT"
-echo ""
+echo "Параметры ASA: $ASA_NAME ($ASA_IP:$ASA_PORT)"
 echo "InfluxDB: http://localhost:$INFLUX_PORT"
 echo "Grafana: http://localhost:$GRAFANA_PORT (логин: $GRAFANA_USER)"
 echo ""
