@@ -1,0 +1,19 @@
+# Git
+.git
+.gitignore
+
+# Secrets and credentials
+*.backup
+*.bak
+testbed-asa.yaml.backup
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Documentation
+README.md

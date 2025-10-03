@@ -1,0 +1,12 @@
+devices:
+  ASAv:
+    os: asa
+    type: ASA
+    credentials:
+      default:
+        username: YOUR_USERNAME
+        password: YOUR_PASSWORD
+    connections:
+      cli:
+        protocol: ssh
+        ip: YOUR_ASA_IP

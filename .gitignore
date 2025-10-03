@@ -1,0 +1,35 @@
+# Sensitive files (do not commit)
+telegraf-asa/testbed-asa.yaml
+*.env
+.env
+
+# Docker volumes (if ever created locally)
+influxdb-data/
+grafana-data/
+
+# Backups and temp files
+*.backup
+*.bak
+*.orig
+*.original
+*.tmp
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
