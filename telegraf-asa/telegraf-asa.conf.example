@@ -1,0 +1,24 @@
+[agent]
+  interval = "30s"
+  round_interval = true
+  flush_interval = "10s"
+  logfile = ""
+  omit_hostname = false
+
+[[outputs.influxdb_v2]]
+  urls = ["http://influxdb:8086"]
+  token = "YOUR_TOKEN_HERE"
+  organization = "myorg"
+  bucket = "asa-metrics"
+
+[[inputs.exec]]
+  commands = ["/opt/asa/venv/bin/python /opt/telegraf/ASA-Telemetry-Guide/telegraf/scripts/asascript.py"]
+  timeout = "25s"
+  data_format = "json"
+  name_override = "exec_asa"
+  tagexclude = ["host"]
+
+[[processors.rename]]
+  [[processors.rename.replace]]
+    tag = "switch_name"
+    dest = "host"
