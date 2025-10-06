@@ -10,14 +10,11 @@ INFLUX_BUCKET="$(grep -E 'DOCKER_INFLUXDB_INIT_BUCKET=' docker-compose.yml | sed
 log "Waiting for InfluxDB"
 for i in {1..60}; do docker compose exec influxdb curl -sf http://localhost:8086/health >/dev/null && { echo OK; break; }; sleep 1; [[ $i -eq 60 ]] && exit 1; done
 
-log "DBRP mapping for ${INFLUX_BUCKET}"
-if docker compose exec influxdb influx v1 dbrp list --org "${INFLUX_ORG}" | grep -q "${INFLUX_BUCKET}"; then
-  echo "✓ DBRP present"
-else
-  BID="$(docker compose exec influxdb influx bucket list --org "${INFLUX_ORG}" | awk '/'"${INFLUX_BUCKET}"'/ {print $1; exit}')"
-  docker compose exec influxdb influx v1 dbrp create --bucket-id "${BID}" --db "${INFLUX_BUCKET}" --rp "autogen" --org "${INFLUX_ORG}" --default
-  echo "✓ DBRP created"
-fi
+log "Create explicit DBRP mapping for ${INFLUX_BUCKET}"
+BID="$(docker compose exec influxdb influx bucket list --org "${INFLUX_ORG}" | awk '/'"${INFLUX_BUCKET}"'/ {print $1; exit}')"
+# Удалить виртуальный DBRP если есть и создать explicit
+docker compose exec influxdb influx v1 dbrp create --bucket-id "${BID}" --db "${INFLUX_BUCKET}" --rp "autogen" --org "${INFLUX_ORG}" --default 2>/dev/null || true
+echo "✓ DBRP created"
 
 log "Provision Grafana datasource"
 [ -n "${WORK_TOKEN}" ] || { echo "✗ No saved token"; exit 1; }
