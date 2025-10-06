@@ -1,55 +1,43 @@
 #!/bin/bash
 set -euo pipefail
+read_password(){ local p="$1" s=""; echo -n "$p" >&2; while IFS= read -r -s -n1 c; do [[ $c == $'\0' ]] && break; if [[ $c == $'\177' ]]; then [[ ${#s} -gt 0 ]] && s="${s%?}" && echo -ne "\b \b" >&2; else s+="$c"; echo -n "*" >&2; fi; done; echo "" >&2; echo "$s"; }
 
-clear
-echo "=========================================="
-echo "  Cisco ASA Monitoring Stack - Setup"
-echo "=========================================="
-echo ""
+# 0) Токен: если уже есть сохранённый, переиспользуем; иначе — генерируем и сохраняем
+TOK_FILE=".secrets/influx_admin_token"
+if [[ -s "$TOK_FILE" ]]; then
+  INFLUX_TOKEN="$(cat "$TOK_FILE")"
+  echo "✓ Reusing saved InfluxDB token from $TOK_FILE"
+else
+  INFLUX_TOKEN="$(openssl rand -hex 32 || tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 64 | head -n1)"
+  printf "%s" "$INFLUX_TOKEN" > "$TOK_FILE"
+  chmod 600 "$TOK_FILE"
+  echo "✓ Generated and saved InfluxDB token to $TOK_FILE"
+fi
 
-read_password() {
-  local prompt="$1" password=""
-  echo -n "$prompt" >&2
-  while IFS= read -r -s -n1 char; do
-    [[ $char == $'\0' ]] && break
-    if [[ $char == $'\177' ]]; then
-      if [ ${#password} -gt 0 ]; then password="${password%?}"; echo -ne "\b \b" >&2; fi
-    else
-      password+="$char"; echo -n "*" >&2
-    fi
-  done
-  echo "" >&2
-  echo "$password"
-}
-
-echo "=== Настройка Cisco ASA ==="
-read -p "IP адрес ASA: " ASA_IP
+echo "=== ASA ==="
+read -p "IP ASA: " ASA_IP
 read -p "SSH порт [22]: " ASA_PORT; ASA_PORT=${ASA_PORT:-22}
 read -p "Имя устройства [ASAv]: " ASA_NAME; ASA_NAME=${ASA_NAME:-ASAv}
 read -p "SSH логин: " ASA_USER
 ASA_PASS=$(read_password "SSH пароль: ")
 
-echo ""; echo "=== Настройка InfluxDB ==="
+echo ""; echo "=== InfluxDB ==="
 read -p "Admin логин [admin]: " INFLUX_USER; INFLUX_USER=${INFLUX_USER:-admin}
 INFLUX_PASS=$(read_password "Admin пароль [admin123]: "); INFLUX_PASS=${INFLUX_PASS:-admin123}
 read -p "Организация [myorg]: " INFLUX_ORG; INFLUX_ORG=${INFLUX_ORG:-myorg}
 read -p "Bucket [asa-metrics]: " INFLUX_BUCKET; INFLUX_BUCKET=${INFLUX_BUCKET:-asa-metrics}
-INFLUX_TOKEN=$(openssl rand -hex 32 2>/dev/null || tr -dc 'a-zA-Z0-9' </dev/urandom | fold -w 64 | head -n 1)
 
-echo ""; echo "=== Настройка Grafana ==="
+echo ""; echo "=== Grafana ==="
 read -p "Admin логин [admin]: " GRAFANA_USER; GRAFANA_USER=${GRAFANA_USER:-admin}
 GRAFANA_PASS=$(read_password "Admin пароль [admin]: "); GRAFANA_PASS=${GRAFANA_PASS:-admin}
+read -p "Порт Grafana [3003]: " GRAFANA_PORT; GRAFANA_PORT=${GRAFANA_PORT:-3003}
 
-echo ""; echo "=== Порты ==="
-read -p "InfluxDB порт [8086]: " INFLUX_PORT; INFLUX_PORT=${INFLUX_PORT:-8086}
-read -p "Grafana порт [3000]: " GRAFANA_PORT; GRAFANA_PORT=${GRAFANA_PORT:-3000}
+echo ""; echo "=== Интервал сбора ==="
+read -p "Интервал (сек) [30]: " INTERVAL; INTERVAL=${INTERVAL:-30}
 
-echo ""; echo "=== Интервал опроса ==="
-read -p "Интервал сбора метрик (сек) [30]: " INTERVAL; INTERVAL=${INTERVAL:-30}
+echo ""; echo "Генерация файлов..."
 
-echo ""; echo "Создаю конфигурацию..."
-
-# testbed-asa.yaml с ssh_options (рабочая схема)
+# testbed с ssh_options под старую ASA
 cat > telegraf-asa/testbed-asa.yaml <<EOF
 devices:
   ${ASA_NAME}:
@@ -59,6 +47,7 @@ devices:
       cli:
         protocol: ssh
         ip: ${ASA_IP}
+        port: ${ASA_PORT}
         ssh_options: >
           -o KexAlgorithms=diffie-hellman-group14-sha1
           -o HostkeyAlgorithms=+ssh-rsa
@@ -79,7 +68,7 @@ devices:
         password: ""
 EOF
 
-# docker-compose.yml c InfluxDB 2.7
+# docker-compose с передачей токена (сработает только при первом init тома)
 cat > docker-compose.yml <<EOF
 services:
   influxdb:
@@ -94,7 +83,7 @@ services:
       - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUX_BUCKET}
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUX_TOKEN}
     ports:
-      - "${INFLUX_PORT}:8086"
+      - "8086:8086"
     volumes:
       - influxdb-data:/var/lib/influxdb2
     healthcheck:
@@ -140,15 +129,19 @@ volumes:
   grafana-data:
 EOF
 
-# обновляем telegraf-asa.conf: токен и интервал
-sed -i "s/token = \".*\"/token = \"${INFLUX_TOKEN}\"/" telegraf-asa/telegraf-asa.conf 2>/dev/null || true
-sed -i "s/interval = \"[0-9]*s\"/interval = \"${INTERVAL}s\"/" telegraf-asa/telegraf-asa.conf 2>/dev/null || true
+# Подставить token/org/bucket/interval в telegraf.conf
+sed -i \
+  -e "s#^  token = \".*\"#  token = \"${INFLUX_TOKEN}\"#" \
+  -e "s#^  organization = \".*\"#  organization = \"${INFLUX_ORG}\"#" \
+  -e "s#^  bucket = \".*\"#  bucket = \"${INFLUX_BUCKET}\"#" \
+  -e "s#^  interval = \".*\"#  interval = \"${INTERVAL}s\"#" \
+  telegraf-asa/telegraf-asa.conf || true
 
 echo ""
 echo "=========================================="
 echo "  ✅ Конфигурация завершена!"
 echo "=========================================="
 echo "ASA: ${ASA_NAME} (${ASA_IP}:${ASA_PORT})"
-echo "InfluxDB: http://localhost:${INFLUX_PORT}"
+echo "InfluxDB: http://localhost:8086"
 echo "Grafana:  http://localhost:${GRAFANA_PORT} (логин: ${GRAFANA_USER})"
-echo "Далее: docker compose up -d && ./scripts/init-stack.sh"
+echo "Далее: docker compose build telegraf-asa && docker compose up -d && ./scripts/init-stack.sh"

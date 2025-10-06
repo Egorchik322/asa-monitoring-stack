@@ -21,7 +21,7 @@
   "panels": [
     {
       "cacheTimeout": null,
-      "datasource": "InfluxDB-asa",
+      "datasource": {"type":"influxdb","uid":"influxdb-asa-main"},
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -122,7 +122,7 @@
       "type": "gauge"
     },
     {
-      "datasource": "InfluxDB-asa",
+      "datasource": {"type":"influxdb","uid":"influxdb-asa-main"},
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -207,7 +207,7 @@
       "type": "gauge"
     },
     {
-      "datasource": "InfluxDB-asa",
+      "datasource": {"type":"influxdb","uid":"influxdb-asa-main"},
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -298,7 +298,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "InfluxDB-asa",
+      "datasource": {"type":"influxdb","uid":"influxdb-asa-main"},
       "fieldConfig": {
         "defaults": {
           "custom": {}
@@ -441,7 +441,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "InfluxDB-asa",
+      "datasource": {"type":"influxdb","uid":"influxdb-asa-main"},
       "fieldConfig": {
         "defaults": {
           "custom": {}
@@ -609,7 +609,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "InfluxDB-asa",
+      "datasource": {"type":"influxdb","uid":"influxdb-asa-main"},
       "fieldConfig": {
         "defaults": {
           "custom": {}
@@ -804,7 +804,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "InfluxDB-asa",
+      "datasource": {"type":"influxdb","uid":"influxdb-asa-main"},
       "fieldConfig": {
         "defaults": {
           "custom": {}
@@ -947,7 +947,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "InfluxDB-asa",
+      "datasource": {"type":"influxdb","uid":"influxdb-asa-main"},
       "fieldConfig": {
         "defaults": {
           "custom": {}
@@ -1100,7 +1100,7 @@
           "text": "DCWFW1-A",
           "value": "DCWFW1-A"
         },
-        "datasource": "InfluxDB-asa",
+        "datasource": {"type":"influxdb","uid":"influxdb-asa-main"},
         "definition": "SHOW TAG VALUES WITH KEY = \"host\";",
         "hide": 0,
         "includeAll": false,

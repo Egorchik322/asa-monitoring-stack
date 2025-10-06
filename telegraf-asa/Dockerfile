@@ -1,16 +1,9 @@
 FROM telegraf:1.30
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-pip python3-venv git openssh-client curl \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN python3 -m venv /opt/asa/venv && \
-    /opt/asa/venv/bin/pip install --no-cache-dir --upgrade pip && \
-    /opt/asa/venv/bin/pip install --no-cache-dir 'pyats[full]' \
-    --pre genie.libs.parser jsonschema
-
-WORKDIR /opt/telegraf
-RUN git clone https://github.com/mageru/ASA-Telemetry-Guide.git /opt/telegraf/ASA-Telemetry-Guide
-
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["telegraf"]
+    openssh-client sshpass python3-venv python3-pip ca-certificates jq curl \
+ && rm -rf /var/lib/apt/lists/*
+# Создаём виртуальное окружение и ставим зависимости pyATS/Genie/Unicon
+RUN python3 -m venv /opt/asa/venv && . /opt/asa/venv/bin/activate \
+ && pip install --upgrade pip setuptools wheel \
+ && pip install pyats genie unicon genie.libs.parser jsonmerge
+WORKDIR /opt/telegraf/ASA-Telemetry-Guide/telegraf/scripts
