@@ -1,5 +1,7 @@
 # Cisco ASA Monitoring Stack (Telegraf + pyATS + InfluxDB 2.x + Grafana)
 
+20iq форк, переписано под свои цели с помощью LLM
+
 Контейнерный стек для сбора телеметрии с Cisco ASA по SSH (pyATS/Unicon), хранения метрик в InfluxDB 2.x и визуализации в Grafana с автоматической настройкой через скрипты.
 
 ## Возможности
