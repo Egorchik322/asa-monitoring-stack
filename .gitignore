@@ -5,6 +5,8 @@
 # Сгенерированные setup.sh файлы
 docker-compose.yml
 telegraf-asa/testbed-asa.yaml
+telegraf-asa/telegraf-asa.conf
+provisioning/datasources/influxdb-asa.yml
 
 # Docker volumes и данные
 influxdb-data/
