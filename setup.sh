@@ -1,10 +1,24 @@
 #!/bin/bash
 set -euo pipefail
-read_password(){ local p="$1" s=""; echo -n "$p" >&2; while IFS= read -r -s -n1 c; do [[ $c == $'\0' ]] && break; if [[ $c == $'\177' ]]; then [[ ${#s} -gt 0 ]] && s="${s%?}" && echo -ne "\b \b" >&2; else s+="$c"; echo -n "*" >&2; fi; done; echo "" >&2; echo "$s"; }
 
-# 0) Токен: если уже есть сохранённый, переиспользуем; иначе — генерируем и сохраняем
+read_password(){
+  local p="$1" s=""
+  echo -n "$p" >&2
+  while IFS= read -r -s -n1 c; do
+    [[ $c == $'\0' ]] && break
+    if [[ $c == $'\177' ]]; then
+      [[ ${#s} -gt 0 ]] && s="${s%?}" && echo -ne "\b \b" >&2
+    else
+      s+="$c"
+      echo -n "*" >&2
+    fi
+  done
+  echo "" >&2
+  echo "$s"
+}
+
+# Токен InfluxDB
 TOK_FILE=".secrets/influx_admin_token"
-mkdir -p .secrets
 mkdir -p .secrets
 if [[ -s "$TOK_FILE" ]]; then
   INFLUX_TOKEN="$(cat "$TOK_FILE")"
@@ -16,40 +30,71 @@ else
   echo "✓ Generated and saved InfluxDB token to $TOK_FILE"
 fi
 
-echo "=== ASA ==="
-read -p "IP ASA: " ASA_IP
-read -p "SSH порт [22]: " ASA_PORT; ASA_PORT=${ASA_PORT:-22}
-read -p "Имя устройства [ASAv]: " ASA_NAME; ASA_NAME=${ASA_NAME:-ASAv}
-read -p "SSH логин: " ASA_USER
-ASA_PASS=$(read_password "SSH пароль: ")
+# Множественные ASA устройства
+echo ""
+echo "=== ASA Устройства ==="
+read -p "Количество ASA устройств [1]: " ASA_COUNT
+ASA_COUNT=${ASA_COUNT:-1}
 
-echo ""; echo "=== InfluxDB ==="
-read -p "Admin логин [admin]: " INFLUX_USER; INFLUX_USER=${INFLUX_USER:-admin}
-INFLUX_PASS=$(read_password "Admin пароль [admin123]: "); INFLUX_PASS=${INFLUX_PASS:-admin123}
-read -p "Организация [myorg]: " INFLUX_ORG; INFLUX_ORG=${INFLUX_ORG:-myorg}
-read -p "Bucket [asa-metrics]: " INFLUX_BUCKET; INFLUX_BUCKET=${INFLUX_BUCKET:-asa-metrics}
+declare -a ASA_DEVICES
+for i in $(seq 1 $ASA_COUNT); do
+  echo ""
+  echo "--- Устройство $i ---"
+  read -p "Имя устройства [ASA-$i]: " NAME
+  NAME=${NAME:-ASA-$i}
+  read -p "IP адрес: " IP
+  read -p "SSH порт [22]: " PORT
+  PORT=${PORT:-22}
+  read -p "SSH логин: " USER
+  PASS=$(read_password "SSH пароль: ")
+  
+  ASA_DEVICES+=("$NAME|$IP|$PORT|$USER|$PASS")
+done
 
-echo ""; echo "=== Grafana ==="
-read -p "Admin логин [admin]: " GRAFANA_USER; GRAFANA_USER=${GRAFANA_USER:-admin}
-GRAFANA_PASS=$(read_password "Admin пароль [admin]: "); GRAFANA_PASS=${GRAFANA_PASS:-admin}
-read -p "Порт Grafana [3003]: " GRAFANA_PORT; GRAFANA_PORT=${GRAFANA_PORT:-3003}
+echo ""
+echo "=== InfluxDB ==="
+read -p "Admin логин [admin]: " INFLUX_USER
+INFLUX_USER=${INFLUX_USER:-admin}
+INFLUX_PASS=$(read_password "Admin пароль [admin123]: ")
+INFLUX_PASS=${INFLUX_PASS:-admin123}
+read -p "Организация [myorg]: " INFLUX_ORG
+INFLUX_ORG=${INFLUX_ORG:-myorg}
+read -p "Bucket [asa-metrics]: " INFLUX_BUCKET
+INFLUX_BUCKET=${INFLUX_BUCKET:-asa-metrics}
 
-echo ""; echo "=== Интервал сбора ==="
-read -p "Интервал (сек) [30]: " INTERVAL; INTERVAL=${INTERVAL:-30}
+echo ""
+echo "=== Grafana ==="
+read -p "Admin логин [admin]: " GRAFANA_USER
+GRAFANA_USER=${GRAFANA_USER:-admin}
+GRAFANA_PASS=$(read_password "Admin пароль [admin]: ")
+GRAFANA_PASS=${GRAFANA_PASS:-admin}
+read -p "Порт Grafana [3003]: " GRAFANA_PORT
+GRAFANA_PORT=${GRAFANA_PORT:-3003}
 
-echo ""; echo "Генерация файлов..."
+echo ""
+echo "=== Интервал сбора ==="
+read -p "Интервал (сек) [30]: " INTERVAL
+INTERVAL=${INTERVAL:-30}
 
-# testbed с ssh_options под старую ASA
+echo ""
+echo "Генерация файлов..."
+
+# Создать testbed-asa.yaml с несколькими устройствами
 cat > telegraf-asa/testbed-asa.yaml <<EOF
 devices:
-  ${ASA_NAME}:
+EOF
+
+for device in "${ASA_DEVICES[@]}"; do
+  IFS='|' read -r NAME IP PORT USER PASS <<< "$device"
+  cat >> telegraf-asa/testbed-asa.yaml <<EOF
+  ${NAME}:
     os: asa
     type: asa
     connections:
       cli:
         protocol: ssh
-        ip: ${ASA_IP}
-        port: ${ASA_PORT}
+        ip: ${IP}
+        port: ${PORT}
         ssh_options: >
           -o KexAlgorithms=diffie-hellman-group14-sha1
           -o HostkeyAlgorithms=+ssh-rsa
@@ -64,13 +109,14 @@ devices:
           goto_enable: false
     credentials:
       default:
-        username: ${ASA_USER}
-        password: "${ASA_PASS}"
+        username: ${USER}
+        password: "${PASS}"
       enable:
         password: ""
 EOF
+done
 
-# docker-compose с передачей токена (сработает только при первом init тома)
+# Создать docker-compose.yml
 cat > docker-compose.yml <<EOF
 services:
   influxdb:
@@ -131,19 +177,28 @@ volumes:
   grafana-data:
 EOF
 
-# Подставить token/org/bucket/interval в telegraf.conf
+# Обновить telegraf-asa.conf
 sed -i \
   -e "s#^  token = \".*\"#  token = \"${INFLUX_TOKEN}\"#" \
   -e "s#^  organization = \".*\"#  organization = \"${INFLUX_ORG}\"#" \
   -e "s#^  bucket = \".*\"#  bucket = \"${INFLUX_BUCKET}\"#" \
   -e "s#^  interval = \".*\"#  interval = \"${INTERVAL}s\"#" \
-  telegraf-asa/telegraf-asa.conf || true
+  telegraf-asa/telegraf-asa.conf 2>/dev/null || true
 
 echo ""
 echo "=========================================="
 echo "  ✅ Конфигурация завершена!"
 echo "=========================================="
-echo "ASA: ${ASA_NAME} (${ASA_IP}:${ASA_PORT})"
+echo "ASA устройств: ${ASA_COUNT}"
+for i in $(seq 1 ${#ASA_DEVICES[@]}); do
+  IFS='|' read -r NAME IP PORT USER PASS <<< "${ASA_DEVICES[$((i-1))]}"
+  echo "  - ${NAME} (${IP}:${PORT})"
+done
+echo ""
 echo "InfluxDB: http://localhost:8086"
 echo "Grafana:  http://localhost:${GRAFANA_PORT} (логин: ${GRAFANA_USER})"
-echo "Далее: docker compose build telegraf-asa && docker compose up -d && ./scripts/init-stack.sh"
+echo ""
+echo "Далее:"
+echo "  docker compose build telegraf-asa"
+echo "  docker compose up -d"
+echo "  ./scripts/init-stack.sh"

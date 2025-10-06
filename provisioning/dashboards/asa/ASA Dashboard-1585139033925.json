@@ -21,7 +21,10 @@
   "panels": [
     {
       "cacheTimeout": null,
-      "datasource": {"type":"influxdb","uid":"influxdb-asa-main"},
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-asa-main"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -122,7 +125,10 @@
       "type": "gauge"
     },
     {
-      "datasource": {"type":"influxdb","uid":"influxdb-asa-main"},
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-asa-main"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -207,7 +213,10 @@
       "type": "gauge"
     },
     {
-      "datasource": {"type":"influxdb","uid":"influxdb-asa-main"},
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-asa-main"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -298,7 +307,10 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": {"type":"influxdb","uid":"influxdb-asa-main"},
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-asa-main"
+      },
       "fieldConfig": {
         "defaults": {
           "custom": {}
@@ -407,7 +419,9 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": ["asa-metrics"],
+        "buckets": [
+          "asa-metrics"
+        ],
         "mode": "time",
         "name": null,
         "show": true,
@@ -441,7 +455,10 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": {"type":"influxdb","uid":"influxdb-asa-main"},
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-asa-main"
+      },
       "fieldConfig": {
         "defaults": {
           "custom": {}
@@ -575,7 +592,9 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": ["asa-metrics"],
+        "buckets": [
+          "asa-metrics"
+        ],
         "mode": "time",
         "name": null,
         "show": true,
@@ -609,7 +628,10 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": {"type":"influxdb","uid":"influxdb-asa-main"},
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-asa-main"
+      },
       "fieldConfig": {
         "defaults": {
           "custom": {}
@@ -770,7 +792,9 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": ["asa-metrics"],
+        "buckets": [
+          "asa-metrics"
+        ],
         "mode": "time",
         "name": null,
         "show": true,
@@ -804,7 +828,10 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": {"type":"influxdb","uid":"influxdb-asa-main"},
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-asa-main"
+      },
       "fieldConfig": {
         "defaults": {
           "custom": {}
@@ -913,7 +940,9 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": ["asa-metrics"],
+        "buckets": [
+          "asa-metrics"
+        ],
         "mode": "time",
         "name": null,
         "show": true,
@@ -947,7 +976,10 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": {"type":"influxdb","uid":"influxdb-asa-main"},
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-asa-main"
+      },
       "fieldConfig": {
         "defaults": {
           "custom": {}
@@ -1057,7 +1089,9 @@
       },
       "type": "graph",
       "xaxis": {
-        "buckets": ["asa-metrics"],
+        "buckets": [
+          "asa-metrics"
+        ],
         "mode": "time",
         "name": null,
         "show": true,
@@ -1094,17 +1128,20 @@
   "templating": {
     "list": [
       {
-        "allValue": null,
+        "allValue": ".*",
         "current": {
-          "selected": false,
-          "text": "DCWFW1-A",
-          "value": "DCWFW1-A"
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
         },
-        "datasource": {"type":"influxdb","uid":"influxdb-asa-main"},
+        "datasource": {
+          "type": "influxdb",
+          "uid": "influxdb-asa-main"
+        },
         "definition": "SHOW TAG VALUES WITH KEY = \"host\";",
         "hide": 0,
-        "includeAll": false,
-        "label": "Switch",
+        "includeAll": true,
+        "label": "ASA Device",
         "multi": false,
         "name": "asa_host",
         "options": [],
