@@ -4,6 +4,7 @@ read_password(){ local p="$1" s=""; echo -n "$p" >&2; while IFS= read -r -s -n1 
 
 # 0) Токен: если уже есть сохранённый, переиспользуем; иначе — генерируем и сохраняем
 TOK_FILE=".secrets/influx_admin_token"
+mkdir -p .secrets
 if [[ -s "$TOK_FILE" ]]; then
   INFLUX_TOKEN="$(cat "$TOK_FILE")"
   echo "✓ Reusing saved InfluxDB token from $TOK_FILE"
